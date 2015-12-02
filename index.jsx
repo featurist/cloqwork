@@ -2,7 +2,6 @@
 var plastiq = require('plastiq');
 var variableEditor = require('./variableEditor');
 var sourceBinding = require('./sourceBinding');
-var compileBabel = require('./compileBabel');
 
 class App {
   constructor() {
