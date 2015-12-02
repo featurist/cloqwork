@@ -1,0 +1,33 @@
+{
+  "name": "cloqwork",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "serve": "beefy index.jsx:index.js -- -t babelify --extension '.jsx'"
+  },
+  "author": "Tim Macfarlane <timmacfarlane@gmail.com>",
+  "license": "ISC",
+  "dependencies": {
+    "babel-core": "5.8.34",
+    "babelify": "6.4.0",
+    "brace": "0.5.1",
+    "browserify": "12.0.1",
+    "plastiq": "1.24.7",
+    "plastiq-ace-editor": "1.0.0",
+    "detective": "4.3.1",
+    "beefy": "2.1.5",
+    "httpism": "1.8.1",
+    "watchify": "3.6.1",
+    "plastiq-function-binding": "1.0.0"
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/featurist/cloqwork.git"
+  },
+  "bugs": {
+    "url": "https://github.com/featurist/cloqwork/issues"
+  },
+  "homepage": "https://github.com/featurist/cloqwork"
+}

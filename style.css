@@ -1,0 +1,17 @@
+pre.source {
+  width: 100%;
+  height: 300px;
+}
+
+pre {
+  background-color: #EAE1CC;
+  padding-left: 20px;
+}
+
+pre code {
+  background-color: inherit;
+}
+
+code {
+  background-color: #EAE1CC;
+}
