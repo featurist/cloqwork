@@ -1,0 +1,53 @@
+body {
+  font-family: monospace;
+  font-size: 12px;
+  padding: 0;
+  margin: 0;
+}
+
+textarea {
+  font-family: monospace;
+  font-size: 12px;
+  width: 500px;
+  height: 600px;
+}
+
+.app > * {
+  float: left;
+  width: 47%;
+  padding: 1%;
+}
+
+.node, .symbol {
+  display: inline;
+  vertical-align:top;
+  white-space: nowrap;
+}
+
+.keyword {
+  color: darkred;
+}
+
+.brace {
+  color: magenta;
+}
+
+.type {
+  color: green;
+}
+
+.attribute {
+  margin-left: 5px;
+}
+
+.Identifier {
+  color: #336699;
+}
+
+.NumericLiteral {
+  color: blue;
+}
+
+.StringLiteral {
+  color: darkgreen;
+}
