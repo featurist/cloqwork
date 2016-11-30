@@ -1,8 +1,9 @@
 var httpism = require('httpism');
+var mapObject = require('lowscore/mapObject');
 
 module.exports = class {
-  constructor(staticDependencies = []) {
-    this.staticDependencies = staticDependencies;
+  constructor(externalDependencies = {}) {
+    this.externalDependencies = externalDependencies;
     this.dependencies = {};
     this.require = function(module) {
       throw new Error(`Cannot find module '${module}'`);
@@ -10,23 +11,34 @@ module.exports = class {
   }
 
   setDependencies(dependencies) {
-    var deps = this.staticDependencies.concat(dependencies);
-
-    if (!this.hasAllDependencies(deps)) {
-      deps.sort();
-      var modules = deps.map(encodeURIComponent).join(',');
-      if (this.requestedModules != modules) {
-        if (this.request) {
-          this.request.abort();
+    if (!this.hasAllDependencies(dependencies)) {
+      var modules = this.moduleList(dependencies);
+      if (modules) {
+        if (this.requestedModules != modules) {
+          if (this.request) {
+            this.request.abort();
+          }
+          this.requestedModules = modules;
+          return this.request = httpism.get('http://localhost:4000/modules/' + modules).then(r => {
+            var req = loadRequire(r.body, this.externalDependencies);
+            this.dependencies = req('package.json').dependencies;
+            this.require = req;
+            console.log('loaded requires');
+          });
         }
-        this.requestedModules = modules;
-        return this.request = httpism.get('http://localhost:4000/modules/' + modules).then(r => {
-          var req = loadRequire(r.body);
-          this.dependencies = req('package.json').dependencies;
-          this.require = req;
-          console.log('loaded requires');
-        });
+      } else {
+        this.dependencies = mapObject(this.externalDependencies, () => '*');
+        this.require = createRequire(this.externalDependencies);
       }
+    }
+  }
+
+  moduleList(dependencies) {
+    var excludes = Object.keys(this.externalDependencies).map(d => '!' + d);
+    var deps = dependencies.filter(d => !this.externalDependencies[d]);
+
+    if (deps.length) {
+      return excludes.concat(deps.map(encodeURIComponent)).sort().join(',');
     }
   }
 
@@ -35,6 +47,16 @@ module.exports = class {
   }
 }
 
-function loadRequire(js) {
-  return new Function('var require;\n' + js + ';\nreturn require;')();
+function loadRequire(js, modules) {
+  return new Function('require', js + ';\nreturn require;')(createRequire(modules));
+}
+
+function createRequire(modules) {
+  return function(name) {
+    if (modules.hasOwnProperty(name)) {
+      return modules[name];
+    } else {
+      throw new Error("Cannot find module '" + name + "'");
+    }
+  };
 }

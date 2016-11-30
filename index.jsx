@@ -11,7 +11,9 @@ class App {
   constructor() {
     this.globals = {};
     this.compiler = new Compiler(['require', 'module', 'exports', 'console', 'setInterval', 'hyperdom']);
-    this.modules = new Modules();
+    this.modules = new Modules({
+      hyperdom: hyperdom
+    });
 
     var sourceBinding = {
       get: () => this.text,
@@ -91,7 +93,7 @@ class App {
       <ol>
         {
           this.output.console.map(entry => {
-            return <li class={entry.type}>{entry.args.join(' ')}</li>
+            return <li class={entry.type}>{join(entry.args, ' ')}</li>
           })
         }
       </ol>
@@ -105,6 +107,20 @@ class App {
   }
 }
 
+function join(items, separator) {
+  var results = [];
+
+  items.forEach((i, index) => {
+    if (index != 0) {
+      results.push(separator);
+    }
+
+    results.push(i);
+  });
+
+  return results;
+}
+
 class Console {
   constructor(viewModel) {
     this.output = [];
@@ -116,19 +132,53 @@ class Console {
   }
 
   log(...args) {
-    this.output.push({type: 'log', args: args});
+    this.output.push({type: 'log', args: trapPromises(args, this.viewModel)});
     this.viewModel.rerender();
   }
 
   warn(...args) {
-    this.output.push({type: 'warn', args: args});
+    this.output.push({type: 'warn', args: trapPromises(args, this.viewModel)});
     this.viewModel.rerender();
   }
 
   error(...args) {
-    this.output.push({type: 'error', args: args});
+    this.output.push({type: 'error', args: trapPromises(args, this.viewModel)});
     this.viewModel.rerender();
   }
+}
+
+class PromiseView {
+  constructor(promise, viewModel) {
+    promise.then(r => {
+      this.hasResult = true;
+      this.result = r;
+      viewModel.rerender();
+    }, e => {
+      this.hasError = true;
+      this.error = e;
+      viewModel.rerender();
+    })
+  }
+
+  render() {
+    if (this.hasResult) {
+      return this.result;
+    } else if (this.hasError) {
+      return this.error;
+    } else {
+      return '[promise]';
+    }
+  }
+}
+
+function trapPromises(list, viewModel) {
+  return list.map(item => {
+    if (item && typeof item.then == 'function') {
+      return new PromiseView(item, viewModel)
+    } else {
+      return item;
+    }
+  });
 }
 
 hyperdom.append(document.body, new App());
