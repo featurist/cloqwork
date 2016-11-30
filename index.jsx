@@ -2,6 +2,7 @@
 var hyperdom = require('hyperdom');
 var AceEditor = require('hyperdom-ace-editor');
 var Compiler = require('./compiler');
+var Modules = require('./modules');
 
 require('brace/mode/jsx');
 require('brace/theme/monokai');
@@ -9,7 +10,8 @@ require('brace/theme/monokai');
 class App {
   constructor() {
     this.globals = {};
-    this.compiler = new Compiler(['require', 'module', 'exports', 'console', 'setInterval', 'hyperdom'], this.globals);
+    this.compiler = new Compiler(['require', 'module', 'exports', 'console', 'setInterval', 'hyperdom']);
+    this.modules = new Modules();
 
     var sourceBinding = {
       get: () => this.text,
@@ -17,6 +19,13 @@ class App {
         this.text = value;
         try {
           this.compiled = this.compiler.compile(value);
+          var reqPromise = this.modules.setDependencies(this.compiled.dependencies);
+          if (reqPromise) {
+            reqPromise.then(() => {
+              this.output = this.call();
+              this.rerender();
+            });
+          }
           this.output = this.call();
         } catch (e) {
           this.compiled = undefined;
@@ -47,9 +56,11 @@ class App {
 
   call() {
     var cnsl = new Console(this);
-    var globals = {};
+    var module = {
+      exports: {}
+    };
     try {
-      var result = this.compiled.call(globals, require, module, exports, cnsl, setInterval, hyperdom);
+      var result = this.compiled.call(this.globals, this.modules.require, module, module.exports, cnsl, setInterval, hyperdom);
       return {
         console: cnsl.output,
         result: result
@@ -65,11 +76,9 @@ class App {
 
   render() {
     return <div>
+      <pre><code>{JSON.stringify(this.globals, null, 2)}</code></pre>
       {this.editor}
-      <p>
-        {this.compiled}
-      </p>
-      <button onclick={() => this.call()}>call</button>
+      <pre><code>{JSON.stringify(this.modules.dependencies, null, 2)}</code></pre>
       {this.renderOutput()}
     </div>
   }

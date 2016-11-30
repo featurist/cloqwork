@@ -55,18 +55,30 @@ describe('compiler', function() {
 
     it('assigns to globals', function () {
       var output = compiler.compile(`
-        x = 5
+        y = x = 5
       `);
 
       var globals = {};
       output.call(globals);
-      expect(globals).to.eql({x: 5});
+      expect(globals).to.eql({x: 5, y: 5});
+    });
+
+    it('throws if a global is not defined', function () {
+      var output = compiler.compile('x');
+
+      var globals = {};
+      expect(() => output.call(globals)).to.throw('x is not defined');
     });
   });
 
   describe('requires', function() {
     it('can detect requires', function () {
+      var output = compiler.compile(`
+        var x = require('x');
+        var y = require('y');
+      `);
 
+      expect(output.dependencies).to.eql(['x', 'y']);
     });
   });
 });
