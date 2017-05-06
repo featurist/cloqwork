@@ -31,6 +31,20 @@ describe('compiler', function() {
     });
   });
 
+  describe('statements', function () {
+    it('can add statements to the end to extract values of variables', function () {
+      var output = compiler.compile('x = 5', ['f(x)', 'g(x)']);
+      var events = []
+
+      output.run({
+        f: (x) => events.push(`f(${x})`),
+        g: (x) => events.push(`g(${x})`)
+      })
+
+      expect(events).to.eql(['f(5)', 'g(5)'])
+    });
+  })
+
   describe('globals', function () {
     it('can detect global variables', function () {
       var output = compiler.compile('x');

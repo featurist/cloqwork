@@ -1,16 +1,29 @@
-/** @jsx hyperdom.jsx */
 var hyperdom = require('hyperdom');
 var AceEditor = require('hyperdom-ace-editor');
 var Compiler = require('./compiler');
 var Modules = require('./modules');
+var ConsoleTab = require('./consoleTab');
+var ResultTab = require('./resultTab');
+var HyperdomTab = require('./hyperdomTab');
+var CodeTab = require('./codeTab');
+var Tabs = require('./tabs');
+var extend = require('lowscore/extend')
+var compact = require('lowscore/compact')
+var flatten = require('lowscore/flatten')
 
 require('brace/mode/jsx');
 require('brace/theme/monokai');
 
 class App {
   constructor() {
-    this.globals = {};
-    this.compiler = new Compiler(['require', 'module', 'exports', 'console', 'setInterval', 'hyperdom']);
+    this.plugins = [
+      new ConsoleTab(),
+      new ResultTab(),
+      new HyperdomTab(),
+      new CodeTab()
+    ]
+
+    this.compiler = new Compiler();
     this.modules = new Modules({
       hyperdom: hyperdom
     });
@@ -18,22 +31,33 @@ class App {
     var sourceBinding = {
       get: () => this.text,
       set: value => {
-        this.text = value;
-        try {
-          this.compiled = this.compiler.compile(value);
-          var reqPromise = this.modules.setDependencies(this.compiled.dependencies);
-          if (reqPromise) {
-            reqPromise.then(() => {
-              this.output = this.call();
-              this.rerender();
-            });
-          }
-          this.output = this.call();
-        } catch (e) {
-          this.compiled = undefined;
-          this.output = {console: [], error: e};
-        }
         localStorage.text = value;
+        this.text = value;
+        var result
+        var error
+
+        var statements = flatten(compact(this.plugins.map(p => typeof p.statements === 'function' && p.statements())))
+
+        try {
+          result = this.compiler.compile(value, statements);
+        } catch (e) {
+          error = e
+        }
+
+        if (error) {
+          this.plugins.forEach(p => typeof p.compileResult === 'function' && p.compileResult(undefined, error))
+        } else {
+          this.plugins.forEach(p => typeof p.compileResult === 'function' && p.compileResult(result))
+
+          var reqPromise = this.modules.setDependencies(result.dependencies);
+          if (reqPromise) {
+            return reqPromise.then(() => {
+              this.call(result);
+            });
+          } else {
+            this.call(result);
+          }
+        }
       }
     };
 
@@ -47,138 +71,59 @@ class App {
         return <pre class="source"></pre>
       }
     });
-
-    this.consoleOutput = [];
-    this.console = {
-      log: (...args) => {
-        this.consoleOutput.push(args);
-      }
-    };
   }
 
-  call() {
-    var cnsl = new Console(this);
+  call(compiled) {
+    var error
+    var result
+
     var module = {
       exports: {}
     };
+
+    var globals = extend({
+      hyperdom,
+      module,
+      exports: module.exports,
+      require: this.modules.require
+    }, ...this.plugins.map(p => typeof p.globals === 'function' && p.globals()))
+
     try {
-      var result = this.compiled.call(this.globals, this.modules.require, module, module.exports, cnsl, setInterval, hyperdom);
-      return {
-        console: cnsl.output,
-        result: result
-      };
+      result = compiled.run(globals);
     } catch(e) {
-      console.error(e);
-      return {
-        console: cnsl.output,
-        error: e
-      };
+      error = e
+    }
+
+    if (error) {
+      this.plugins.forEach(plugin => {
+        typeof plugin.result === 'function' && plugin.result(undefined, error, globals)
+      })
+    } else {
+      this.plugins.forEach(plugin => {
+        typeof plugin.result === 'function' && plugin.result(result, undefined, globals)
+      })
     }
   }
 
   render() {
-    return <div>
-      <pre><code>{JSON.stringify(this.globals, null, 2)}</code></pre>
-      {this.editor}
-      <pre><code>{JSON.stringify(this.modules.dependencies, null, 2)}</code></pre>
-      {this.renderOutput()}
+    return <div class="Cloqwork">
+      <div class="Editors">
+        <div class="Editor">
+          {this.editor}
+        </div>
+      </div>
+      <div class="Outputs">
+        <Tabs>
+          <div data-tab-name="dependencies" class="Dependencies">
+            <pre><code>{JSON.stringify(this.modules.dependencies, null, 2)}</code></pre>
+          </div>
+          {
+            this.plugins.map(p => <div data-tab-name={p.name}>{p}</div>)
+          }
+        </Tabs>
+      </div>
     </div>
   }
-
-  renderOutput() {
-    return <div class="Output">
-      {
-        this.output.error? <div class="Output-Error">{this.output.error.message}</div>: ''
-      }
-      <ol>
-        {
-          this.output.console.map(entry => {
-            return <li class={entry.type}>{join(entry.args, ' ')}</li>
-          })
-        }
-      </ol>
-      {
-        this.output.result !== undefined? <div class="Output-Result">{this.output.result}</div>: ''
-      }
-    </div>
-  }
-
-  rerender() {
-  }
-}
-
-function join(items, separator) {
-  var results = [];
-
-  items.forEach((i, index) => {
-    if (index != 0) {
-      results.push(separator);
-    }
-
-    results.push(i);
-  });
-
-  return results;
-}
-
-class Console {
-  constructor(viewModel) {
-    this.output = [];
-    this.viewModel = viewModel;
-
-    this.log = this.log.bind(this);
-    this.warn = this.warn.bind(this);
-    this.error = this.error.bind(this);
-  }
-
-  log(...args) {
-    this.output.push({type: 'log', args: trapPromises(args, this.viewModel)});
-    this.viewModel.rerender();
-  }
-
-  warn(...args) {
-    this.output.push({type: 'warn', args: trapPromises(args, this.viewModel)});
-    this.viewModel.rerender();
-  }
-
-  error(...args) {
-    this.output.push({type: 'error', args: trapPromises(args, this.viewModel)});
-    this.viewModel.rerender();
-  }
-}
-
-class PromiseView {
-  constructor(promise, viewModel) {
-    promise.then(r => {
-      this.hasResult = true;
-      this.result = r;
-      viewModel.rerender();
-    }, e => {
-      this.hasError = true;
-      this.error = e;
-      viewModel.rerender();
-    })
-  }
-
-  render() {
-    if (this.hasResult) {
-      return this.result;
-    } else if (this.hasError) {
-      return this.error;
-    } else {
-      return '[promise]';
-    }
-  }
-}
-
-function trapPromises(list, viewModel) {
-  return list.map(item => {
-    if (item && typeof item.then == 'function') {
-      return new PromiseView(item, viewModel)
-    } else {
-      return item;
-    }
-  });
 }
 
 hyperdom.append(document.body, new App());

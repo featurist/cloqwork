@@ -5,7 +5,6 @@ pre.source {
 
 pre {
   background-color: #EAE1CC;
-  padding-left: 20px;
 }
 
 pre code {
@@ -14,4 +13,52 @@ pre code {
 
 code {
   background-color: #EAE1CC;
+}
+
+.Output {
+}
+
+.Output-Console {
+  list-style-type: circle;
+  padding-left: 18px;
+}
+
+.Output-Console-Entry {
+  white-space: pre;
+  font-family: monospace;
+}
+
+.Output-Result:hover, .Output-Console-Entry:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.Output-Result {
+  white-space: pre;
+  font-family: monospace;
+  margin-left:18px;
+  position: relative;
+}
+
+.Output-Result::before {
+  content: '➜';
+  position: absolute;
+  left: -18px;
+}
+
+.Tabs-names {
+  padding-left: 0;
+  list-style-type: none;
+}
+
+.Tabs-name {
+  padding-left: 0;
+  display: inline-block;
+  margin: 0 3px;
+  cursor: pointer;
+  background: #eaeaea;
+}
+
+.Tabs-name--active {
+  padding-left: 0;
+  background-color: #d7d7ff;
 }

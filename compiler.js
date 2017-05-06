@@ -1,10 +1,10 @@
-var babel = require('babel-core');
+var babel = require('babel-standalone');
 var presetEs2015 = require('babel-preset-es2015');
 var hyperdomPreset = require('babel-preset-hyperdom');
 
 module.exports = class {
-  compile(source) {
-    var dependenciesPlugin = createDependencyPlugin();
+  compile(source, statements) {
+    var dependenciesPlugin = createDependencyPlugin({statements});
 
     var output = babel.transform(source, {
       presets: [presetEs2015, hyperdomPreset],
@@ -45,7 +45,7 @@ class Globals {
   }
 }
 
-function createDependencyPlugin() {
+function createDependencyPlugin({statements = []} = {}) {
   var variables = {};
   var dependencies = {};
 
@@ -84,8 +84,16 @@ function createDependencyPlugin() {
         },
 
         Program: function (path) {
-          if (path.node.body.length == 1 && babel.types.isExpressionStatement(path.node.body[0])) {
-            path.node.body[0] = babel.types.returnStatement(path.node.body[0].expression);
+          if (statements.length > 0) {
+            var stmts = statements.map(s => {
+              var ast = babel.transform(s, {code: false}).ast
+              return ast.program.body[0]
+            })
+            path.node.body.push(...stmts)
+          } else {
+            if (path.node.body.length == 1 && babel.types.isExpressionStatement(path.node.body[0])) {
+              path.node.body[0] = babel.types.returnStatement(path.node.body[0].expression);
+            }
           }
         }
       }

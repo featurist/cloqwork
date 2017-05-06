@@ -19,8 +19,8 @@ module.exports = class {
             this.request.abort();
           }
           this.requestedModules = modules;
-          return this.request = httpism.get('http://localhost:4000/modules/' + modules).then(r => {
-            var req = loadRequire(r.body, this.externalDependencies);
+          return this.request = httpism.get('http://require.plastiq.org/modules/' + modules).then(js => {
+            var req = loadRequire(js, this.externalDependencies);
             this.dependencies = req('package.json').dependencies;
             this.require = req;
             console.log('loaded requires');
