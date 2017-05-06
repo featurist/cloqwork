@@ -1,36 +1,27 @@
 var babel = require('babel-core');
 var presetEs2015 = require('babel-preset-es2015');
-var syntaxJsx = require('babel-plugin-syntax-jsx');
-var transformReactJsx = require('babel-plugin-transform-react-jsx');
+var hyperdomPreset = require('babel-preset-hyperdom');
 
 module.exports = class {
-  constructor(parameters = [], globals = {}) {
-    this.parameters = parameters;
-    this.paramSet = new Set(parameters);
-    this.globals = globals;
-  }
-
   compile(source) {
-    var dependenciesPlugin = createDependencyPlugin(this.paramSet);
+    var dependenciesPlugin = createDependencyPlugin();
 
     var output = babel.transform(source, {
-      presets: [presetEs2015],
+      presets: [presetEs2015, hyperdomPreset],
       plugins: [
-        syntaxJsx,
-        [transformReactJsx, {pragma: 'hyperdom.jsx'}],
         dependenciesPlugin
       ]
     });
 
-    var fn = new Function(['globals'].concat(this.parameters).join(', '), output.code);
+    var fn = new Function(['globals'], output.code);
 
     return {
-      call: (...args) => {
-        args[0] = new Globals(args[0]);
-        return fn.apply(undefined, args);
+      run: (context) => {
+        var globals = new Globals(context);
+        return fn.call(globals, globals)
       },
       code: output.code,
-      variables: Object.keys(dependenciesPlugin.variables),
+      globals: Object.keys(dependenciesPlugin.variables),
       dependencies: Object.keys(dependenciesPlugin.dependencies)
     };
   }
@@ -54,7 +45,7 @@ class Globals {
   }
 }
 
-function createDependencyPlugin(parameters) {
+function createDependencyPlugin() {
   var variables = {};
   var dependencies = {};
 
@@ -68,7 +59,7 @@ function createDependencyPlugin(parameters) {
       visitor: {
         Identifier: function (path) {
           if (babel.types.isReferenced(path.node, path.parent) && path.node.name != 'globals') {
-            var isGlobal = !path.scope.hasBinding(path.node.name) && !parameters.has(path.node.name);
+            var isGlobal = !path.scope.hasBinding(path.node.name)
 
             if (isGlobal) {
               variables[path.node.name] = true;
@@ -78,7 +69,7 @@ function createDependencyPlugin(parameters) {
         },
 
         AssignmentExpression: function (path) {
-          if (babel.types.isIdentifier(path.node.left) && !path.scope.hasBinding(path.node.left.name) && !parameters.has(path.node.left.name)) {
+          if (babel.types.isIdentifier(path.node.left) && !path.scope.hasBinding(path.node.left.name)) {
             path.replaceWith(babel.types.callExpression(babel.types.memberExpression(babel.types.identifier('globals'), babel.types.identifier('set')), [babel.types.stringLiteral(path.node.left.name), path.node.right]));
           }
         },

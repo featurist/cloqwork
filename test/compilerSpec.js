@@ -10,7 +10,7 @@ describe('compiler', function() {
 
   it('can compile a simple expression', function () {
     var output = compiler.compile('5');
-    expect(output.call()).to.equal(5);
+    expect(output.run()).to.equal(5);
   });
 
   describe('jsx', function () {
@@ -25,7 +25,7 @@ describe('compiler', function() {
           return args;
         }
       };
-      var vdom = output.call({}, hyperdom);
+      var vdom = output.run({hyperdom});
 
       expect(vdom).to.eql(['h1', null, 'title']);
     });
@@ -34,7 +34,7 @@ describe('compiler', function() {
   describe('globals', function () {
     it('can detect global variables', function () {
       var output = compiler.compile('x');
-      expect(output.call({x: 5})).to.equal(5);
+      expect(output.run({x: 5})).to.equal(5);
     });
 
     it("doesn't detect globals for recursive functions", function () {
@@ -50,7 +50,7 @@ describe('compiler', function() {
         return fib(5)
       `);
 
-      expect(output.call()).to.equal(8);
+      expect(output.run()).to.equal(8);
     });
 
     it('assigns to globals', function () {
@@ -59,7 +59,7 @@ describe('compiler', function() {
       `);
 
       var globals = {};
-      output.call(globals);
+      output.run(globals);
       expect(globals).to.eql({x: 5, y: 5});
     });
 
@@ -67,7 +67,7 @@ describe('compiler', function() {
       var output = compiler.compile('x');
 
       var globals = {};
-      expect(() => output.call(globals)).to.throw('x is not defined');
+      expect(() => output.run(globals)).to.throw('x is not defined');
     });
   });
 
